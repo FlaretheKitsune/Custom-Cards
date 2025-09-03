@@ -33,7 +33,7 @@ function s.initial_effect(c)
 	c:RegisterEffect(e2)
 end
 s.listed_names={24094653,27288416} -- Polymerization, Mokey Mokey
-s.listed_series={0xb2} -- Mokey Mokey archetype (example, update if yours is 184)
+s.listed_series={0x184} -- Mokey Mokey archetype (example, update if yours is 184)
 
 --Fusion Summon
 function s.fusfilter(c,e,tp,mg,f,chkf)
@@ -88,3 +88,4 @@ function s.thop(e,tp,eg,ep,ev,re,r,rp)
 		Duel.ConfirmCards(1-tp,g)
 	end
 end
+
