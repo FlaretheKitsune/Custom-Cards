@@ -1,85 +1,76 @@
---Mokey Mokey Metamorphosis
+--[[
+Mokey Mokey Metamorphosis
+Spell Card
+(This card is always treated as "Polymerization".)
+Fusion Summon 1 "Mokey Mokey" Fusion Monster from your Extra Deck, using monsters from your hand or field as Fusion Material.
+If you control 3 or more "Mokey Mokey" monsters, you can also use 1 "Mokey Mokey" monster from your Deck as Fusion Material.
+If this card is in your GY, except the turn it was sent there: You can banish this card; add 1 "Mokey Mokey" monster from your Deck to your hand. You can only use this effect of "Mokey Mokey Metamorphosis" once per turn.
+--]]
+
 local s,id=GetID()
 function s.initial_effect(c)
-	--Always treated as "Polymerization"
+	-- Always treated as "Polymerization"
 	local e0=Effect.CreateEffect(c)
 	e0:SetType(EFFECT_TYPE_SINGLE)
-	e0:SetProperty(EFFECT_FLAG_SINGLE_RANGE+EFFECT_FLAG_CANNOT_DISABLE+EFFECT_FLAG_UNCOPYABLE)
-	e0:SetCode(EFFECT_CHANGE_CODE)
-	e0:SetRange(LOCATION_HAND+LOCATION_GRAVE+LOCATION_ONFIELD+LOCATION_DECK)
-	e0:SetValue(24094653) -- "Polymerization"
+	e0:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
+	e0:SetCode(EFFECT_ADD_CODE)
+	e0:SetRange(LOCATION_ALL)
+	e0:SetValue(CARD_POLYMERIZATION)
 	c:RegisterEffect(e0)
-
-	--Fusion Summon
-	local e1=Effect.CreateEffect(c)
-	e1:SetCategory(CATEGORY_SPECIAL_SUMMON+CATEGORY_FUSION_SUMMON)
-	e1:SetType(EFFECT_TYPE_ACTIVATE)
-	e1:SetCode(EVENT_FREE_CHAIN)
-	e1:SetTarget(s.target)
-	e1:SetOperation(s.activate)
+	
+	-- Fusion Summon
+	local e1=Fusion.CreateSummonEff(c,aux.FilterBoolFunction(Card.IsSetCard,0x184),Fusion.OnFieldMat(Card.IsAbleToDeck),s.fextra,Fusion.BanishMaterial,nil,nil,nil,nil,nil,nil,nil,nil,nil,s.extratg)
+	e1:SetCountLimit(1,id,EFFECT_COUNT_CODE_OATH)
 	c:RegisterEffect(e1)
-
-	--GY effect: Add 1 Mokey Mokey monster
+	
+	-- Add from Deck to hand
 	local e2=Effect.CreateEffect(c)
-	e2:SetDescription(aux.Stringid(id,0))
+	e2:SetDescription(aux.Stringid(id,1))
 	e2:SetCategory(CATEGORY_TOHAND+CATEGORY_SEARCH)
 	e2:SetType(EFFECT_TYPE_IGNITION)
 	e2:SetRange(LOCATION_GRAVE)
-	e2:SetCountLimit(1,id)
 	e2:SetCondition(s.thcon)
 	e2:SetCost(aux.bfgcost)
 	e2:SetTarget(s.thtg)
 	e2:SetOperation(s.thop)
+	e2:SetCountLimit(1,id+1)
 	c:RegisterEffect(e2)
 end
-s.listed_names={24094653,27288416} -- Polymerization, Mokey Mokey
-s.listed_series={0x184} -- Mokey Mokey archetype (example, update if yours is 184)
 
---Fusion Summon
-function s.fusfilter(c,e,tp,mg,f,chkf)
-	return c:IsSetCard(0x184) and c:IsType(TYPE_FUSION) and c:IsLevelBelow(12) and c:IsCanBeSpecialSummoned(e,SUMMON_TYPE_FUSION,tp,false,false)
-		and c:CheckFusionMaterial(mg,nil,chkf)
-end
-function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then
-		local chkf=tp
-		local mg=Duel.GetFusionMaterial(tp)
-		if Duel.IsExistingMatchingCard(Card.IsCode,tp,LOCATION_MZONE,0,3,nil,27288416) then
-			mg:Merge(Duel.GetMatchingGroup(aux.TRUE,tp,LOCATION_DECK,0,nil))
-		end
-		return Duel.IsExistingMatchingCard(s.fusfilter,tp,LOCATION_EXTRA,0,1,nil,e,tp,mg,nil,chkf)
+-- Check if can use deck as material
+function s.fextra(e,tp,mg1)
+	if Duel.IsExistingMatchingCard(aux.FaceupFilter(Card.IsCode,12482652),tp,LOCATION_MZONE,0,3,nil) then
+		return Duel.GetMatchingGroup(Fusion.IsMonsterFilter(Card.IsAbleToDeck),tp,LOCATION_DECK,0,nil),s.fcheck
 	end
-	Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_EXTRA)
-end
-function s.activate(e,tp,eg,ep,ev,re,r,rp)
-	local chkf=tp
-	local mg=Duel.GetFusionMaterial(tp)
-	if Duel.IsExistingMatchingCard(Card.IsCode,tp,LOCATION_MZONE,0,3,nil,27288416) then
-		mg:Merge(Duel.GetMatchingGroup(aux.TRUE,tp,LOCATION_DECK,0,nil))
-	end
-	local sg=Duel.GetMatchingGroup(s.fusfilter,tp,LOCATION_EXTRA,0,nil,e,tp,mg,nil,chkf)
-	if #sg>0 then
-		Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
-		local tc=sg:Select(tp,1,1,nil):GetFirst()
-		local mat=Duel.SelectFusionMaterial(tp,tc,mg,nil,chkf)
-		tc:SetMaterial(mat)
-		Duel.SendtoGrave(mat,REASON_EFFECT+REASON_MATERIAL+REASON_FUSION)
-		Duel.SpecialSummon(tc,SUMMON_TYPE_FUSION,tp,tp,false,false,POS_FACEUP)
-		tc:CompleteProcedure()
-	end
+	return nil
 end
 
---GY Search effect
+-- Check if can use from deck
+function s.fcheck(tp,sg,fc)
+	return sg:IsExists(Card.IsLocation,1,nil,LOCATION_DECK)
+end
+
+-- Target for using from deck
+function s.extratg(e,tp,eg,ep,ev,re,r,rp,chk)
+	if chk==0 then return true end
+	Duel.SetPossibleOperationInfo(0,CATEGORY_TOHAND,nil,1,tp,LOCATION_DECK)
+end
+
+-- Check GY effect condition
 function s.thcon(e,tp,eg,ep,ev,re,r,rp)
-	return e:GetHandler():IsPreviousLocation(LOCATION_ONFIELD+LOCATION_HAND)
+	return Duel.GetTurnPlayer()~=tp
 end
+
+-- Add to hand target
 function s.thfilter(c)
-	return c:IsSetCard(0x184) and c:IsMonster() and c:IsAbleToHand()
+	return c:IsCode(12482652) or (c:IsSetCard(0x184) and c:IsMonster() and c:IsAbleToHand())
 end
+
 function s.thtg(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return Duel.IsExistingMatchingCard(s.thfilter,tp,LOCATION_DECK,0,1,nil) end
 	Duel.SetOperationInfo(0,CATEGORY_TOHAND,nil,1,tp,LOCATION_DECK)
 end
+
 function s.thop(e,tp,eg,ep,ev,re,r,rp)
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
 	local g=Duel.SelectMatchingCard(tp,s.thfilter,tp,LOCATION_DECK,0,1,1,nil)
