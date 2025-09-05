@@ -53,16 +53,16 @@ end
 
 function s.drtg(e,tp,eg,ep,ev,re,r,rp,chk)
 	local ct=Duel.GetMatchingGroupCount(s.cfilter,tp,LOCATION_MZONE,0,nil)
-	if chk==0 then return ct>0 and Duel.IsPlayerCanDraw(tp,ct*2) end
+	if chk==0 then return ct>0 and Duel.IsPlayerCanDraw(tp,ct*1) end
 	Duel.SetTargetPlayer(tp)
-	Duel.SetOperationInfo(0,CATEGORY_DRAW,nil,0,tp,ct*2)
+	Duel.SetOperationInfo(0,CATEGORY_DRAW,nil,0,tp,ct*1)
 end
 
 function s.drop(e,tp,eg,ep,ev,re,r,rp)
 	local p=Duel.GetChainInfo(0,CHAININFO_TARGET_PLAYER)
 	local ct=Duel.GetMatchingGroupCount(s.cfilter,tp,LOCATION_MZONE,0,nil)
 	if ct>0 then
-		Duel.Draw(p,ct*2,REASON_EFFECT)
+		Duel.Draw(p,ct*1,REASON_EFFECT)
 	end
 end
 
@@ -103,3 +103,4 @@ function s.effop(e,tp,eg,ep,ev,re,r,rp)
 	
 	rc:RegisterFlagEffect(0,RESET_EVENT+RESETS_STANDARD,EFFECT_FLAG_CLIENT_HINT,1,0,aux.Stringid(id,2))
 end
+
