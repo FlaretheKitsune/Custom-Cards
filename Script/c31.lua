@@ -13,49 +13,72 @@ function s.initial_effect(c)
     e1:SetOperation(s.spop)
     c:RegisterEffect(e1)
     
-    --Special Summon from GY when used as Synchro Material
+    --Destroy 1 "Cyber" monster on summon
     local e2=Effect.CreateEffect(c)
     e2:SetDescription(aux.Stringid(id,1))
-    e2:SetCategory(CATEGORY_SPECIAL_SUMMON)
+    e2:SetCategory(CATEGORY_DESTROY)
     e2:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
+    e2:SetCode(EVENT_SPSUMMON_SUCCESS)
     e2:SetProperty(EFFECT_FLAG_DELAY)
-    e2:SetCode(EVENT_BE_MATERIAL)
-    e2:SetCountLimit(1,id+1)
-    e2:SetCondition(s.spcon)
-    e2:SetTarget(s.sptg2)
-    e2:SetOperation(s.spop2)
+    e2:SetCondition(s.descon)
+    e2:SetTarget(s.destg)
+    e2:SetOperation(s.desop)
     c:RegisterEffect(e2)
+    
+    --Special Summon from GY when used as Synchro Material
+    local e3=Effect.CreateEffect(c)
+    e3:SetDescription(aux.Stringid(id,2))
+    e3:SetCategory(CATEGORY_SPECIAL_SUMMON)
+    e3:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
+    e3:SetProperty(EFFECT_FLAG_DELAY)
+    e3:SetCode(EVENT_BE_MATERIAL)
+    e3:SetCountLimit(1,id+1)
+    e3:SetCondition(s.spcon)
+    e3:SetTarget(s.sptg2)
+    e3:SetOperation(s.spop2)
+    c:RegisterEffect(e3)
 end
 
 --Effect 1: Special Summon from hand
-function s.desfilter(c)
-    return c:IsFaceup() and c:IsRace(RACE_MACHINE) and c:IsAbleToGrave()
-end
-
 function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk)
     if chk==0 then 
         return Duel.GetLocationCount(tp,LOCATION_MZONE)>0
         and e:GetHandler():IsCanBeSpecialSummoned(e,0,tp,false,false)
-        and Duel.IsExistingMatchingCard(s.desfilter,tp,LOCATION_MZONE,0,1,nil)
     end
     Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,e:GetHandler(),1,0,0)
-    Duel.SetOperationInfo(0,CATEGORY_DESTROY,nil,1,tp,LOCATION_MZONE)
 end
 
 function s.spop(e,tp,eg,ep,ev,re,r,rp)
     local c=e:GetHandler()
-    if not c:IsRelateToEffect(e) then return end
+    if c:IsRelateToEffect(e) then
+        Duel.SpecialSummon(c,0,tp,tp,false,false,POS_FACEUP)
+    end
+end
+
+--Effect 2: Destroy 1 "Cyber" monster on summon
+function s.descon(e,tp,eg,ep,ev,re,r,rp)
+    return e:GetHandler():IsPreviousLocation(LOCATION_HAND) and re and re:GetHandler()==e:GetHandler()
+end
+
+function s.desfilter(c)
+    return c:IsFaceup() and c:IsRace(RACE_MACHINE) and c:IsDestructable()
+end
+
+function s.destg(e,tp,eg,ep,ev,re,r,rp,chk)
+    if chk==0 then return Duel.IsExistingMatchingCard(s.desfilter,tp,LOCATION_MZONE,0,1,nil) end
+    Duel.SetOperationInfo(0,CATEGORY_DESTROY,nil,1,tp,LOCATION_MZONE)
+end
+
+function s.desop(e,tp,eg,ep,ev,re,r,rp)
     Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_DESTROY)
     local g=Duel.SelectMatchingCard(tp,s.desfilter,tp,LOCATION_MZONE,0,1,1,nil)
     if #g>0 then
         Duel.HintSelection(g)
-        if Duel.Destroy(g,REASON_EFFECT)~=0 and Duel.SpecialSummon(c,0,tp,tp,false,false,POS_FACEUP)~=0 then
-            --Successfully summoned
-        end
+        Duel.Destroy(g,REASON_EFFECT)
     end
 end
 
---Effect 2: Special Summon from GY when used as Synchro Material
+--Effect 3: Special Summon from GY when used as Synchro Material
 function s.spcon(e,tp,eg,ep,ev,re,r,rp)
     return r==REASON_SYNCHRO and e:GetHandler():IsPreviousLocation(LOCATION_ONFIELD)
 end
@@ -75,8 +98,8 @@ function s.spop2(e,tp,eg,ep,ev,re,r,rp)
     Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
     local g=Duel.SelectMatchingCard(tp,aux.NecroValleyFilter(s.spfilter),tp,LOCATION_GRAVE,0,1,1,nil,e,tp)
     if #g>0 then
-        local tc=g:GetFirst()
-        if Duel.SpecialSummonStep(tc,0,tp,tp,false,false,POS_FACEUP) then
+        local tc=Duel.SpecialSummon(g,0,tp,tp,false,false,POS_FACEUP)
+        if tc>0 then
             --Negate effects
             local e1=Effect.CreateEffect(e:GetHandler())
             e1:SetType(EFFECT_TYPE_SINGLE)
@@ -90,6 +113,5 @@ function s.spop2(e,tp,eg,ep,ev,re,r,rp)
             e2:SetReset(RESET_EVENT+RESETS_STANDARD)
             tc:RegisterEffect(e2)
         end
-        Duel.SpecialSummonComplete()
     end
 end
