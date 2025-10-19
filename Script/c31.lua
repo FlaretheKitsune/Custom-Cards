@@ -74,7 +74,7 @@ function s.spop(e,tp,eg,ep,ev,re,r,rp)
 end
 
 function s.spfilter(c,e,tp)
-    return c:IsSetCard(0x462) and c:IsCanBeSpecialSummoned(e,0,tp,false,false) and not c:IsCode(id)
+    return c:IsSetCard(0x2323) and c:IsCanBeSpecialSummoned(e,0,tp,false,false) and not c:IsCode(id)
 end
 
 function s.thcon(e,tp,eg,ep,ev,re,r,rp)
@@ -82,7 +82,7 @@ function s.thcon(e,tp,eg,ep,ev,re,r,rp)
 end
 
 function s.thfilter(c)
-    return c:IsSetCard(0x462) and c:IsType(TYPE_SPELL+TYPE_TRAP) and c:IsAbleToHand()
+    return c:IsSetCard(0x2323) and c:IsType(TYPE_SPELL+TYPE_TRAP) and c:IsAbleToHand()
 end
 
 function s.thtg(e,tp,eg,ep,ev,re,r,rp,chk)
