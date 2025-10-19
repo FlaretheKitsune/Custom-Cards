@@ -1,6 +1,6 @@
 --Alpha-Cyber Gear Driver
 --Scripted by YourName
-local s,id=2323
+local s,id=GetID()
 function s.initial_effect(c)
     --Special Summon from hand
     local e1=Effect.CreateEffect(c)
@@ -27,15 +27,17 @@ function s.initial_effect(c)
     c:RegisterEffect(e2)
 end
 
---Special Summon from hand
-function s.desfilter(c,tp)
-    return c:IsFaceup() and c:IsSetCard(0x2323) and c:IsAbleToGrave() and Duel.GetMZoneCount(tp,c)>0
+--Effect 1: Special Summon from hand
+function s.desfilter(c)
+    return c:IsFaceup() and c:IsRace(RACE_MACHINE) and c:IsAbleToGrave()
 end
 
 function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk)
-    if chk==0 then return Duel.GetLocationCount(tp,LOCATION_MZONE)>0
+    if chk==0 then 
+        return Duel.GetLocationCount(tp,LOCATION_MZONE)>0
         and e:GetHandler():IsCanBeSpecialSummoned(e,0,tp,false,false)
-        and Duel.IsExistingMatchingCard(s.desfilter,tp,LOCATION_MZONE,0,1,nil,tp) end
+        and Duel.IsExistingMatchingCard(s.desfilter,tp,LOCATION_MZONE,0,1,nil)
+    end
     Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,e:GetHandler(),1,0,0)
     Duel.SetOperationInfo(0,CATEGORY_DESTROY,nil,1,tp,LOCATION_MZONE)
 end
@@ -44,20 +46,22 @@ function s.spop(e,tp,eg,ep,ev,re,r,rp)
     local c=e:GetHandler()
     if not c:IsRelateToEffect(e) then return end
     Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_DESTROY)
-    local g=Duel.SelectMatchingCard(tp,s.desfilter,tp,LOCATION_MZONE,0,1,1,nil,tp)
-    if #g>0 and Duel.Destroy(g,REASON_EFFECT)~=0 then
-        Duel.SpecialSummon(c,0,tp,tp,false,false,POS_FACEUP)
+    local g=Duel.SelectMatchingCard(tp,s.desfilter,tp,LOCATION_MZONE,0,1,1,nil)
+    if #g>0 then
+        Duel.HintSelection(g)
+        if Duel.Destroy(g,REASON_EFFECT)~=0 and Duel.SpecialSummon(c,0,tp,tp,false,false,POS_FACEUP)~=0 then
+            --Successfully summoned
+        end
     end
 end
 
---Special Summon from GY when used as Synchro Material
+--Effect 2: Special Summon from GY when used as Synchro Material
 function s.spcon(e,tp,eg,ep,ev,re,r,rp)
     return r==REASON_SYNCHRO and e:GetHandler():IsPreviousLocation(LOCATION_ONFIELD)
 end
 
 function s.spfilter(c,e,tp)
     return c:IsSetCard(0x2323) and c:IsCanBeSpecialSummoned(e,0,tp,false,false)
-        and not c:IsCode(id) and c:IsLocation(LOCATION_GRAVE)
 end
 
 function s.sptg2(e,tp,eg,ep,ev,re,r,rp,chk)
@@ -69,10 +73,10 @@ end
 function s.spop2(e,tp,eg,ep,ev,re,r,rp)
     if Duel.GetLocationCount(tp,LOCATION_MZONE)<=0 then return end
     Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
-    local g=Duel.SelectMatchingCard(tp,s.spfilter,tp,LOCATION_GRAVE,0,1,1,nil,e,tp)
+    local g=Duel.SelectMatchingCard(tp,aux.NecroValleyFilter(s.spfilter),tp,LOCATION_GRAVE,0,1,1,nil,e,tp)
     if #g>0 then
-        local tc=Duel.SpecialSummon(g,0,tp,tp,false,false,POS_FACEUP)
-        if #tc>0 then
+        local tc=g:GetFirst()
+        if Duel.SpecialSummonStep(tc,0,tp,tp,false,false,POS_FACEUP) then
             --Negate effects
             local e1=Effect.CreateEffect(e:GetHandler())
             e1:SetType(EFFECT_TYPE_SINGLE)
@@ -82,8 +86,10 @@ function s.spop2(e,tp,eg,ep,ev,re,r,rp)
             local e2=Effect.CreateEffect(e:GetHandler())
             e2:SetType(EFFECT_TYPE_SINGLE)
             e2:SetCode(EFFECT_DISABLE_EFFECT)
+            e2:SetValue(RESET_TURN_SET)
             e2:SetReset(RESET_EVENT+RESETS_STANDARD)
             tc:RegisterEffect(e2)
         end
+        Duel.SpecialSummonComplete()
     end
 end
