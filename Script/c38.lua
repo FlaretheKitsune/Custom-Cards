@@ -37,7 +37,7 @@ end
 
 -- Search Cyber Synchron on activation
 function s.filter(c)
-	return c:IsCode(0x2323) or (c:IsSetCard(0x93) and c:IsType(TYPE_TUNER) and c:IsMonster())
+	return c:IsCode(0x2323) or (c:IsSetCard(0x93) and c:IsMonster())
 end
 
 function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
@@ -121,4 +121,5 @@ function s.repop(e,tp,eg,ep,ev,re,r,rp)
 	if tc and tc:IsAbleToRemove() then
 		Duel.Remove(tc,POS_FACEUP,REASON_EFFECT+REASON_REPLACE)
 	end
+
 end
