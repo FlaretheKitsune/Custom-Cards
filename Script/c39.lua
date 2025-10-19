@@ -17,38 +17,44 @@ function s.initial_effect(c)
 	end)
 	c:RegisterEffect(e1)
 	
-	--Quick Effect: Banish 1 "Cyber" monster from GY, then destroy 1 card
-	local e2=Effect.CreateEffect(c)
-	e2:SetDescription(aux.Stringid(id,0))
-	e2:SetCategory(CATEGORY_REMOVE+CATEGORY_DESTROY)
-	e2:SetType(EFFECT_TYPE_QUICK_O)
-	e2:SetCode(EVENT_FREE_CHAIN)
-	e2:SetRange(LOCATION_MZONE)
-	e2:SetCountLimit(1,id)
-	e2:SetCost(s.rmcost)
-	e2:SetTarget(s.rmtg)
-	e2:SetOperation(s.rmop)
-	c:RegisterEffect(e2)
+    --Quick Effect: Banish 1 "Alpha-Cyber" monster from GY, then destroy 1 card
+    local e2=Effect.CreateEffect(c)
+    e2:SetDescription(aux.Stringid(id,0))
+    e2:SetCategory(CATEGORY_REMOVE+CATEGORY_DESTROY)
+    e2:SetType(EFFECT_TYPE_QUICK_O)
+    e2:SetCode(EVENT_FREE_CHAIN)
+    e2:SetRange(LOCATION_MZONE)
+    e2:SetCountLimit(1,id)
+    e2:SetTarget(s.rmtg)
+    e2:SetOperation(s.rmop)
+    c:RegisterEffect(e2)
 end
 
-function s.rmcost(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return Duel.IsExistingMatchingCard(Card.IsAbleToRemove,tp,LOCATION_GRAVE,0,1,nil) end
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_REMOVE)
-	local g=Duel.SelectMatchingCard(tp,Card.IsAbleToRemove,tp,LOCATION_GRAVE,0,1,1,nil)
-	Duel.Remove(g,POS_FACEUP,REASON_COST)
+function s.rmfilter(c)
+    return c:IsSetCard(0x2323) and c:IsAbleToRemove() and c:IsType(TYPE_MONSTER)
 end
 
-function s.rmtg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
-	if chkc then return chkc:IsOnField() end
-	if chk==0 then return Duel.IsExistingTarget(nil,tp,LOCATION_ONFIELD,LOCATION_ONFIELD,1,nil) end
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_DESTROY)
-	local g=Duel.SelectTarget(tp,nil,tp,LOCATION_ONFIELD,LOCATION_ONFIELD,1,1,nil)
-	Duel.SetOperationInfo(0,CATEGORY_DESTROY,g,1,0,0)
+function s.rmtg(e,tp,eg,ep,ev,re,r,rp,chk)
+    if chk==0 then 
+        return Duel.IsExistingMatchingCard(s.rmfilter,tp,LOCATION_GRAVE,0,1,nil)
+            and Duel.IsExistingMatchingCard(nil,tp,LOCATION_ONFIELD,LOCATION_ONFIELD,1,e:GetHandler())
+    end
+    Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_REMOVE)
+    local g=Duel.SelectMatchingCard(tp,s.rmfilter,tp,LOCATION_GRAVE,0,1,1,nil)
+    Duel.SetTargetCard(g)
+    Duel.SetOperationInfo(0,CATEGORY_REMOVE,g,1,0,0)
+    local dg=Duel.GetMatchingGroup(nil,tp,LOCATION_ONFIELD,LOCATION_ONFIELD,e:GetHandler())
+    Duel.SetOperationInfo(0,CATEGORY_DESTROY,dg,1,0,0)
 end
 
 function s.rmop(e,tp,eg,ep,ev,re,r,rp)
-	local tc=Duel.GetFirstTarget()
-	if tc and tc:IsRelateToEffect(e) then
-		Duel.Destroy(tc,REASON_EFFECT)
-	end
+    local tc=Duel.GetFirstTarget()
+    if tc and Duel.Remove(tc,POS_FACEUP,REASON_EFFECT)>0 then
+        Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_DESTROY)
+        local dg=Duel.SelectMatchingCard(tp,nil,tp,LOCATION_ONFIELD,LOCATION_ONFIELD,1,1,e:GetHandler())
+        if #dg>0 then
+            Duel.BreakEffect()
+            Duel.Destroy(dg,REASON_EFFECT)
+        end
+    end
 end
