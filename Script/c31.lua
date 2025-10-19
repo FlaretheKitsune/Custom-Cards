@@ -1,6 +1,6 @@
 --Alpha-Cyber Gear Driver
 --Scripted by YourName
-local s,id=GetID()
+local s,id=2323
 function s.initial_effect(c)
     --Special Summon
     local e1=Effect.CreateEffect(c)
@@ -29,7 +29,7 @@ function s.initial_effect(c)
 end
 
 function s.cfilter(c)
-    return c:IsRace(RACE_MACHINE) and c:IsAbleToRemoveAsCost() and aux.SpElimFilter(c,true)
+    return c:IsSetCard(0x2323) and c:IsAbleToRemoveAsCost() and aux.SpElimFilter(c,true)
 end
 
 function s.spcost(e,tp,eg,ep,ev,re,r,rp,chk)
@@ -42,15 +42,7 @@ end
 function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk)
     if chk==0 then 
         if Duel.GetLocationCount(tp,LOCATION_MZONE)<=0 then return false end
-        local res=e:GetHandler():IsCanBeSpecialSummoned(e,0,tp,false,false)
-        --Check if we can summon from hand as well
-        if res and Duel.IsPlayerCanSpecialSummon(tp) then
-            local g=Duel.GetMatchingGroup(s.spfilter,tp,LOCATION_HAND,0,nil,e,tp)
-            if #g>0 and Duel.GetLocationCount(tp,LOCATION_MZONE)>1 then
-                return true
-            end
-        end
-        return res
+        return e:GetHandler():IsCanBeSpecialSummoned(e,0,tp,false,false)
     end
     Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,e:GetHandler(),1,0,0)
 end
