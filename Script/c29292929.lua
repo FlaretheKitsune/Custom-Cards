@@ -119,7 +119,7 @@ function s.negcon(e,tp,eg,ep,ev,re,r,rp)
 		and re:IsHasType(EFFECT_TYPE_ACTIVATE) and Duel.IsChainNegatable(ev)
 end
 function s.cfilter(c)
-	return c:IsSetCard(0xc008) and c:IsMonster() and c:IsAbleToDeck()
+	return c:IsSetCard(0xc1122) and c:IsMonster() and c:IsAbleToDeck()
 end
 function s.negcost(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return Duel.IsExistingMatchingCard(s.cfilter,tp,LOCATION_GRAVE,0,1,nil) end
@@ -162,3 +162,4 @@ function s.spop2(e,tp,eg,ep,ev,re,r,rp)
 		Duel.SpecialSummon(g,0,tp,tp,false,false,POS_FACEUP)
 	end
 end
+
