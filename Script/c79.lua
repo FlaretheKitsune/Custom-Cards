@@ -61,7 +61,7 @@ function s.desop(e,tp,eg,ep,ev,re,r,rp)
     ct=ct+1
     c:SetTurnCounter(ct)
     if ct==2 then
-        Duel.SendtoGrave(c,REASON_EFFECT)
+        Duel.Destroy(c,REASON_EFFECT)
     end
 end
 
