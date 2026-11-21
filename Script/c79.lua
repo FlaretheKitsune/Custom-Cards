@@ -1,9 +1,11 @@
 
 -- Alchemic Bonding
 -- Card ID: 79
+-- Legendary Chemist: 75
 -- Water Dragon Cluster: 6022371
 
 local s,id=GetID()
+local CARD_LEGENDARY_CHEMIST=75
 local CARD_WATER_DRAGON_CLUSTER=6022371
 
 function s.initial_effect(c)
@@ -13,68 +15,92 @@ function s.initial_effect(c)
     local e1=Effect.CreateEffect(c)
     e1:SetType(EFFECT_TYPE_ACTIVATE)
     e1:SetCode(EVENT_FREE_CHAIN)
+    e1:SetHintTiming(0,TIMING_END_PHASE)
+    e1:SetTarget(s.target)
     c:RegisterEffect(e1)
 
-    -- Destroy this card during your 2nd Standby Phase after activation
+    -- Once per turn: Tribute 1 Legendary Chemist or Dinosaur
+    -- Special Summon a different Attribute Dinosaur from Deck
     local e2=Effect.CreateEffect(c)
-    e2:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
-    e2:SetCode(EVENT_PHASE+PHASE_STANDBY)
+    e2:SetDescription(aux.Stringid(id,0))
+    e2:SetCategory(CATEGORY_SPECIAL_SUMMON)
+    e2:SetType(EFFECT_TYPE_IGNITION)
     e2:SetRange(LOCATION_SZONE)
-    e2:SetProperty(EFFECT_FLAG_CANNOT_DISABLE)
-    e2:SetCountLimit(1)
-    e2:SetCondition(s.descon)
-    e2:SetOperation(s.desop)
-    e2:SetReset(RESET_EVENT+RESETS_STANDARD+RESET_PHASE+PHASE_STANDBY+RESET_SELF_TURN,3)
-    c:SetTurnCounter(0)
+    e2:SetCountLimit(1,id)
+    e2:SetCost(s.cost)
+    e2:SetTarget(s.tg)
+    e2:SetOperation(s.op)
     c:RegisterEffect(e2)
 
-    -- Once per turn: Tribute 1 Dinosaur monster from your hand or field
-    local e3=Effect.CreateEffect(c)
-    e3:SetDescription(aux.Stringid(id,0))
-    e3:SetCategory(CATEGORY_SPECIAL_SUMMON)
-    e3:SetType(EFFECT_TYPE_IGNITION)
-    e3:SetRange(LOCATION_SZONE)
-    e3:SetCountLimit(1,id)
-    e3:SetCost(s.cost)
-    e3:SetTarget(s.tg)
-    e3:SetOperation(s.op)
-    c:RegisterEffect(e3)
-
-    -- If this card is destroyed by a card effect:
-    -- Banish 3 Dinosaur monsters with different Attributes
+    -- If destroyed by a card effect:
+    -- Banish 3 Dinosaurs with different Attributes
     -- Special Summon Water Dragon Cluster
-    local e4=Effect.CreateEffect(c)
-    e4:SetDescription(aux.Stringid(id,1))
-    e4:SetCategory(CATEGORY_SPECIAL_SUMMON+CATEGORY_REMOVE)
-    e4:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
-    e4:SetProperty(EFFECT_FLAG_DELAY)
-    e4:SetCode(EVENT_DESTROYED)
-    e4:SetCondition(s.spcon)
-    e4:SetTarget(s.sptg)
-    e4:SetOperation(s.spop)
-    c:RegisterEffect(e4)
+    local e3=Effect.CreateEffect(c)
+    e3:SetDescription(aux.Stringid(id,1))
+    e3:SetCategory(CATEGORY_SPECIAL_SUMMON+CATEGORY_REMOVE)
+    e3:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
+    e3:SetProperty(EFFECT_FLAG_DELAY)
+    e3:SetCode(EVENT_DESTROYED)
+    e3:SetCondition(s.spcon)
+    e3:SetTarget(s.sptg)
+    e3:SetOperation(s.spop)
+    c:RegisterEffect(e3)
 end
 
--- Self-destruction timer
+-- Activation timer (Photon Change style)
+function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
+    if chk==0 then return true end
+
+    local c=e:GetHandler()
+
+    -- Destroy during your 2nd Standby Phase
+    local e1=Effect.CreateEffect(c)
+    e1:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
+    e1:SetProperty(EFFECT_FLAG_CANNOT_DISABLE)
+    e1:SetCode(EVENT_PHASE+PHASE_STANDBY)
+    e1:SetRange(LOCATION_SZONE)
+    e1:SetCountLimit(1)
+    e1:SetCondition(s.descon)
+    e1:SetOperation(s.desop)
+    e1:SetReset(RESET_EVENT+RESETS_STANDARD+RESET_PHASE+
+        PHASE_STANDBY+RESET_SELF_TURN,3)
+    c:SetTurnCounter(0)
+    c:RegisterEffect(e1)
+end
+
 function s.descon(e,tp,eg,ep,ev,re,r,rp)
     return Duel.IsTurnPlayer(tp)
 end
 
 function s.desop(e,tp,eg,ep,ev,re,r,rp)
     local c=e:GetHandler()
-    local ct=c:GetTurnCounter()
-    ct=ct+1
+    local ct=c:GetTurnCounter()+1
     c:SetTurnCounter(ct)
+
     if ct==2 then
         Duel.SendtoGrave(c,REASON_EFFECT)
     end
 end
 
--- Tribute cost
+-- Tribute filter: Legendary Chemist or Dinosaur
 function s.tribfilter(c)
-    return c:IsRace(RACE_DINOSAUR)
+    return c:IsMonster() and
+        (c:IsCode(CARD_LEGENDARY_CHEMIST) or c:IsRace(RACE_DINOSAUR))
 end
 
+-- Special Summon filter
+function s.spfilter(c,att)
+    return c:IsRace(RACE_DINOSAUR)
+        and c:IsLevelBelow(4)
+        and (c:IsAttribute(ATTRIBUTE_EARTH)
+            or c:IsAttribute(ATTRIBUTE_WATER)
+            or c:IsAttribute(ATTRIBUTE_FIRE)
+            or c:IsAttribute(ATTRIBUTE_WIND))
+        and c:GetAttribute()~=att
+        and c:IsCanBeSpecialSummoned(nil,0,0,false,false)
+end
+
+-- Tribute cost
 function s.cost(e,tp,eg,ep,ev,re,r,rp,chk)
     if chk==0 then
         return Duel.IsExistingMatchingCard(
@@ -82,73 +108,81 @@ function s.cost(e,tp,eg,ep,ev,re,r,rp,chk)
             LOCATION_HAND+LOCATION_MZONE,0,1,nil
         )
     end
+
     Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TOGRAVE)
+
     local g=Duel.SelectMatchingCard(
         tp,s.tribfilter,tp,
         LOCATION_HAND+LOCATION_MZONE,0,1,1,nil
     )
-    Duel.SendtoGrave(g,REASON_COST)
-    e:SetLabel(g:GetFirst():GetAttribute())
+
+    local tc=g:GetFirst()
+    if tc then
+        local att=tc:GetAttribute()
+        e:SetLabel(att)
+        Duel.SendtoGrave(g,REASON_COST)
+    end
 end
 
--- Deck Special Summon filter
-function s.spfilter(c,att)
-    return c:IsRace(RACE_DINOSAUR)
-        and c:IsLevelBelow(4)
-        and (
-            c:IsAttribute(ATTRIBUTE_EARTH)
-            or c:IsAttribute(ATTRIBUTE_WATER)
-            or c:IsAttribute(ATTRIBUTE_FIRE)
-            or c:IsAttribute(ATTRIBUTE_WIND)
-        )
-        and c:GetAttribute()~=att
-end
-
+-- Target
 function s.tg(e,tp,eg,ep,ev,re,r,rp,chk)
     if chk==0 then
         return Duel.IsExistingMatchingCard(
             s.spfilter,tp,LOCATION_DECK,0,1,nil,e:GetLabel()
         )
     end
-    Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_DECK)
+
+    Duel.SetOperationInfo(
+        0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_DECK
+    )
 end
 
+-- Special Summon from Deck
 function s.op(e,tp,eg,ep,ev,re,r,rp)
     local att=e:GetLabel()
+
+    if Duel.GetLocationCount(tp,LOCATION_MZONE)<=0 then
+        return
+    end
+
     Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
+
     local g=Duel.SelectMatchingCard(
-        tp,s.spfilter,tp,LOCATION_DECK,0,1,1,nil,att
+        tp,s.spfilter,tp,
+        LOCATION_DECK,0,1,1,nil,att
     )
+
     if #g>0 then
         Duel.SpecialSummon(g,0,tp,tp,false,false,POS_FACEUP)
     end
 end
 
--- Destruction effect condition
+-- Destruction condition
 function s.spcon(e,tp,eg,ep,ev,re,r,rp)
     return e:GetHandler():IsReason(REASON_EFFECT)
         and e:GetHandler():IsPreviousLocation(LOCATION_SZONE)
 end
 
--- Dinosaur monsters in GY
+-- Dinosaur GY filter
 function s.dino3filter(c)
-    return c:IsRace(RACE_DINOSAUR) and c:IsMonster()
+    return c:IsMonster() and c:IsRace(RACE_DINOSAUR)
 end
 
--- Check for 3 different Attributes
+-- Three different Attributes
 function s.banishcheck(sg,e,tp,mg)
     return sg:GetClassCount(Card.GetAttribute)==3
 end
 
+-- Target destruction effect
 function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk)
     if chk==0 then
         local g=Duel.GetMatchingGroup(
             s.dino3filter,tp,LOCATION_GRAVE,0,nil
         )
-        return #g>=3
-            and aux.SelectUnselectGroup(
-                g,e,tp,3,3,s.banishcheck,0
-            )
+
+        return #g>=3 and aux.SelectUnselectGroup(
+            g,e,tp,3,3,s.banishcheck,0
+        )
     end
 
     local g=Duel.GetMatchingGroup(
@@ -160,9 +194,11 @@ function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk)
     )
 
     Duel.SetTargetCard(rg)
+
     Duel.SetOperationInfo(
         0,CATEGORY_REMOVE,rg,#rg,0,0
     )
+
     Duel.SetOperationInfo(
         0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,
         LOCATION_HAND+LOCATION_DECK+LOCATION_GRAVE
@@ -179,31 +215,26 @@ function s.spop(e,tp,eg,ep,ev,re,r,rp)
 
     if not rg or #rg~=3 then return end
 
-    -- Banish the 3 selected Dinosaur monsters
     if Duel.Remove(rg,POS_FACEUP,REASON_EFFECT)~=3 then
         return
     end
 
-    -- Check hand, Deck, and GY for Water Dragon Cluster
     local g=Duel.GetMatchingGroup(
         function(tc)
             return tc:IsCode(CARD_WATER_DRAGON_CLUSTER)
-                and tc:IsCanBeSpecialSummoned(
-                    e,0,tp,true,false
-                )
+                and tc:IsCanBeSpecialSummoned(e,0,tp,true,false)
         end,
         tp,
         LOCATION_HAND+LOCATION_DECK+LOCATION_GRAVE,
-        0,
-        nil
+        0,nil
     )
 
     if #g==0 then return end
 
     Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
+
     local sg=g:Select(tp,1,1,nil)
 
-    -- Special Summon ignoring Summoning Conditions
     Duel.SpecialSummon(
         sg,0,tp,tp,true,false,POS_FACEUP
     )
