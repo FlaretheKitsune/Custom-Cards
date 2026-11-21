@@ -20,7 +20,6 @@ function s.initial_effect(c)
     c:RegisterEffect(e1)
 
     -- Once per turn: Tribute 1 Legendary Chemist or Dinosaur
-    -- Special Summon a different Attribute Dinosaur from Deck
     local e2=Effect.CreateEffect(c)
     e2:SetDescription(aux.Stringid(id,0))
     e2:SetCategory(CATEGORY_SPECIAL_SUMMON)
@@ -32,9 +31,7 @@ function s.initial_effect(c)
     e2:SetOperation(s.op)
     c:RegisterEffect(e2)
 
-    -- If destroyed by a card effect:
-    -- Banish 3 Dinosaurs with different Attributes
-    -- Special Summon Water Dragon Cluster
+    -- If destroyed by a card effect
     local e3=Effect.CreateEffect(c)
     e3:SetDescription(aux.Stringid(id,1))
     e3:SetCategory(CATEGORY_SPECIAL_SUMMON+CATEGORY_REMOVE)
@@ -47,7 +44,7 @@ function s.initial_effect(c)
     c:RegisterEffect(e3)
 end
 
--- Activation timer (Photon Change style)
+-- Activation timer
 function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
     if chk==0 then return true end
 
@@ -62,8 +59,8 @@ function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
     e1:SetCountLimit(1)
     e1:SetCondition(s.descon)
     e1:SetOperation(s.desop)
-    e1:SetReset(RESET_EVENT+RESETS_STANDARD+RESET_PHASE+
-        PHASE_STANDBY+RESET_SELF_TURN,3)
+    e1:SetReset(RESET_EVENT+RESETS_STANDARD+
+        RESET_PHASE+PHASE_STANDBY+RESET_SELF_TURN,3)
     c:SetTurnCounter(0)
     c:RegisterEffect(e1)
 end
@@ -77,59 +74,79 @@ function s.desop(e,tp,eg,ep,ev,re,r,rp)
     local ct=c:GetTurnCounter()+1
     c:SetTurnCounter(ct)
 
-    if ct==2 then
-        Duel.SendtoGrave(c,REASON_EFFECT)
+    if ct==2 and c:IsFaceup() then
+        Duel.Destroy(c,REASON_EFFECT)
     end
 end
 
--- Tribute filter: Legendary Chemist or Dinosaur
-function s.tribfilter(c)
-    return c:IsMonster() and
-        (c:IsCode(CARD_LEGENDARY_CHEMIST) or c:IsRace(RACE_DINOSAUR))
+-- Tribute filter
+function s.tribfilter(c,e,tp)
+    if not (c:IsCode(CARD_LEGENDARY_CHEMIST)
+        or c:IsRace(RACE_DINOSAUR)) then
+        return false
+    end
+
+    -- Must be possible to Tribute
+    if c:IsLocation(LOCATION_MZONE) then
+        if not c:IsReleasable() then return false end
+    elseif not c:IsAbleToGraveAsCost() then
+        return false
+    end
+
+    -- Must have a valid Dinosaur with a different Attribute
+    return Duel.IsExistingMatchingCard(
+        s.spfilter,tp,LOCATION_DECK,0,1,nil,
+        e,tp,c:GetAttribute()
+    )
 end
 
--- Special Summon filter
-function s.spfilter(c,att)
+-- Deck monster filter
+function s.spfilter(c,e,tp,att)
     return c:IsRace(RACE_DINOSAUR)
         and c:IsLevelBelow(4)
         and (c:IsAttribute(ATTRIBUTE_EARTH)
             or c:IsAttribute(ATTRIBUTE_WATER)
             or c:IsAttribute(ATTRIBUTE_FIRE)
             or c:IsAttribute(ATTRIBUTE_WIND))
-        and c:GetAttribute()~=att
-        and c:IsCanBeSpecialSummoned(nil,0,0,false,false)
+        and (att==nil or c:GetAttribute()~=att)
+        and c:IsCanBeSpecialSummoned(e,0,tp,false,false)
 end
 
 -- Tribute cost
 function s.cost(e,tp,eg,ep,ev,re,r,rp,chk)
     if chk==0 then
-        return Duel.IsExistingMatchingCard(
-            s.tribfilter,tp,
-            LOCATION_HAND+LOCATION_MZONE,0,1,nil
-        )
+        return Duel.GetLocationCount(tp,LOCATION_MZONE)>0
+            and Duel.IsExistingMatchingCard(
+                s.tribfilter,tp,
+                LOCATION_HAND+LOCATION_MZONE,0,1,nil,e,tp
+            )
     end
 
-    Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TOGRAVE)
+    Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_RELEASE)
 
     local g=Duel.SelectMatchingCard(
         tp,s.tribfilter,tp,
-        LOCATION_HAND+LOCATION_MZONE,0,1,1,nil
+        LOCATION_HAND+LOCATION_MZONE,0,1,1,nil,e,tp
     )
 
     local tc=g:GetFirst()
     if tc then
-        local att=tc:GetAttribute()
-        e:SetLabel(att)
-        Duel.SendtoGrave(g,REASON_COST)
+        -- Save Attribute before Tributing
+        e:SetLabel(tc:GetAttribute())
+
+        -- Tribute the selected monster
+        Duel.Release(g,REASON_COST)
     end
 end
 
 -- Target
 function s.tg(e,tp,eg,ep,ev,re,r,rp,chk)
     if chk==0 then
-        return Duel.IsExistingMatchingCard(
-            s.spfilter,tp,LOCATION_DECK,0,1,nil,e:GetLabel()
-        )
+        return Duel.GetLocationCount(tp,LOCATION_MZONE)>0
+            and Duel.IsExistingMatchingCard(
+                s.spfilter,tp,LOCATION_DECK,0,1,nil,
+                e,tp,nil
+            )
     end
 
     Duel.SetOperationInfo(
@@ -149,7 +166,7 @@ function s.op(e,tp,eg,ep,ev,re,r,rp)
 
     local g=Duel.SelectMatchingCard(
         tp,s.spfilter,tp,
-        LOCATION_DECK,0,1,1,nil,att
+        LOCATION_DECK,0,1,1,nil,e,tp,att
     )
 
     if #g>0 then
@@ -157,7 +174,7 @@ function s.op(e,tp,eg,ep,ev,re,r,rp)
     end
 end
 
--- Destruction condition
+-- Destruction effect condition
 function s.spcon(e,tp,eg,ep,ev,re,r,rp)
     return e:GetHandler():IsReason(REASON_EFFECT)
         and e:GetHandler():IsPreviousLocation(LOCATION_SZONE)
@@ -168,12 +185,12 @@ function s.dino3filter(c)
     return c:IsMonster() and c:IsRace(RACE_DINOSAUR)
 end
 
--- Three different Attributes
+-- Check for 3 different Attributes
 function s.banishcheck(sg,e,tp,mg)
     return sg:GetClassCount(Card.GetAttribute)==3
 end
 
--- Target destruction effect
+-- Destruction effect target
 function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk)
     if chk==0 then
         local g=Duel.GetMatchingGroup(
